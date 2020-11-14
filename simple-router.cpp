@@ -21,6 +21,26 @@
 
 namespace simple_router {
 
+bool checkIfMatchMac(uint8_t addr[6],Buffer mac_addr){
+  for(int i=0;i<6;i++){
+    if(addr[i]!=mac_addr.at(i)){
+      return false;
+    }
+  }
+  return true;
+}
+
+// check if broadcase addr
+bool checkIfBroadcast(uint8_t addr[6]){
+  uint8_t broadcase_addr[6]={0xff,0xff,0xff,0xff,0xff,0xff};
+  for(int i=0;i<6;i++){
+    if(addr[i]!=broadcase_addr[i]){
+      return false;
+    }
+  }
+  return true;
+}
+
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 // IMPLEMENT THIS METHOD
@@ -39,6 +59,68 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
 
   // FILL THIS IN
 
+  // DEBUG INFO
+  print_hdrs(packet);
+
+  ethernet_hdr* eth_header=(ethernet_hdr*)packet.data();
+
+  // check if broadcase or mathc mac address
+  if(!checkIfBroadcast(eth_header->ether_dhost) && checkIfMatchMac(eth_header->ether_dhost,iface->addr)){
+    std::cerr<<"Received packet,ignore because of not match broadcase or mac address";
+  }
+
+  // handle arp packet
+  if(eth_header->ether_type==ethertype_arp){
+    arp_hdr *arp_header=(arp_hdr*)(eth_header+sizeof(ethernet_hdr));
+
+    // check if request
+    if(arp_header->arp_op==arp_op_request){
+      // check if target here
+      if(arp_header->arp_tip==iface->ip){
+        // send arp reply packet
+        arp_hdr arp_reply;
+        arp_reply.arp_hrd=arp_hrd_ethernet;
+        arp_reply.arp_pro=ethertype_ip;
+        arp_reply.arp_op=arp_op_reply;
+        arp_reply.arp_hln=0x06;
+        arp_reply.arp_pln=0x04;
+        std::copy(iface->addr.begin(),iface->addr.end(),arp_reply.arp_hrd);
+        arp_reply.arp_sip=iface->ip;
+        std::copy(arp_header->arp_sha,arp_header->arp_sha+6,arp_reply.arp_tha);
+        arp_reply.arp_tip=arp_header->arp_sip;
+
+        ethernet_hdr ethe_reply;
+        ethe_reply.ether_type=ethertype_arp;
+        std::copy(iface->addr.begin(),iface->addr.end(),ethe_reply.ether_shost);
+        std::copy(arp_header->arp_sha,arp_header->arp_sha+6,ethe_reply.ether_dhost);
+
+        Buffer reply;
+        reply.insert(reply.end(),(unsigned char*)&ethe_reply,(unsigned char*)&ethe_reply+sizeof(ethe_reply));
+        reply.insert(reply.end(),(unsigned char*)&arp_reply,(unsigned char*)&arp_reply+sizeof(arp_reply));
+
+        sendPacket(reply,iface->name);
+      }
+    }
+
+    if(arp_header->arp_op==arp_op_reply){
+      Buffer sha(arp_header->arp_sha,arp_header->arp_sha+6);
+      auto request = m_arp.insertArpEntry(sha,arp_header->arp_sip);
+      if(request!=nullptr){
+        for(auto iter=request->packets.begin();iter!=request->packets.end();iter++){
+          sendPacket(iter->packet,iter->iface);
+        }
+        m_arp.removeRequest(request);
+      }
+
+    }
+  }
+
+  // handle ip packet
+  if(eth_header->ether_type==ethertype_ip){
+    ip_hdr *ip_header= (ip_hdr*)(eth_header+sizeof(ethernet_hdr));
+  }
+
+  // ignore
 }
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

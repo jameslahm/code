@@ -32,7 +32,22 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
 {
 
   // FILL THIS IN
+  for(auto iter=m_arpRequests.begin();iter!=m_arpRequests.end();){
+    auto now = steady_clock::now();
+    auto request = *iter;
+    if((now-request->timeSent)>seconds(1)){
+      if((request->nTimesSent)>=5){
+        // TODO: send icmp host unreachable
 
+        removeRequest(request);
+      }
+      else{
+        // TODO: send arp request
+        request->timeSent=now;
+        request->nTimesSent++;
+      }
+    }
+  }
 }
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
