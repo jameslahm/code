@@ -32,16 +32,16 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
 {
 
   // FILL THIS IN
-  // for(auto iter=m_cacheEntries.begin();iter!=m_cacheEntries.end();){
-  //   auto entry = *iter;
-  //   if(!entry->isValid){
-  //     iter=m_cacheEntries.erase(iter);
-  //   }
-  //   else
-  //   {
-  //     ++iter;
-  //   }
-  // }
+  for(auto iter=m_cacheEntries.begin();iter!=m_cacheEntries.end();){
+    auto entry = *iter;
+    if(!entry->isValid){
+      iter=m_cacheEntries.erase(iter);
+    }
+    else
+    {
+      ++iter;
+    }
+  }
 
   
 
@@ -159,8 +159,6 @@ std::shared_ptr<ArpRequest>
 ArpCache::insertArpEntry(const Buffer& mac, uint32_t ip)
 {
   std::lock_guard<std::mutex> lock(m_mutex);
-
-  printf("hello\n");
 
   auto entry = std::make_shared<ArpEntry>();
   entry->mac = mac;

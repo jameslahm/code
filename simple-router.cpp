@@ -55,8 +55,8 @@ namespace simple_router
 
     uint16_t tmp = *(start + 5);
     *(start + 5) = 0;
-    
-    auto checksum =cksum(start,sizeof(ip_hdr));
+
+    auto checksum = cksum(start, sizeof(ip_hdr));
 
     *(start + 5) = tmp;
     return checksum;
@@ -68,8 +68,8 @@ namespace simple_router
 
     uint16_t tmp = *(start + 1);
     *(start + 1) = 0;
-    
-    auto checksum = cksum(start,len);
+
+    auto checksum = cksum(start, len);
 
     *(start + 1) = tmp;
     return checksum;
@@ -95,9 +95,8 @@ namespace simple_router
     // FILL THIS IN
 
     // DEBUG INFO
-    std::cout<<"Recv:"<<std::endl;
+    std::cout << "Recv:" << std::endl;
     print_hdrs(packet);
-
 
     int length = packet.size();
 
@@ -111,7 +110,6 @@ namespace simple_router
     }
 
     ethernet_hdr *eth_header = (ethernet_hdr *)packet.data();
-
 
     // check if broadcase or mathc mac address
     if (!checkIfBroadcast(eth_header->ether_dhost) && !checkIfMatchMac(eth_header->ether_dhost, iface->addr))
@@ -130,7 +128,7 @@ namespace simple_router
         return;
       }
 
-      arp_hdr *arp_header = (arp_hdr *)((unsigned char*)eth_header + sizeof(ethernet_hdr));
+      arp_hdr *arp_header = (arp_hdr *)((unsigned char *)eth_header + sizeof(ethernet_hdr));
 
       // check if request
       if (ntohs(arp_header->arp_op) == arp_op_request)
@@ -142,7 +140,7 @@ namespace simple_router
           arp_hdr arp_reply;
           arp_reply.arp_hrd = htons(arp_hrd_ethernet);
           arp_reply.arp_pro = htons(ethertype_ip);
-          arp_reply.arp_op =htons(arp_op_reply);
+          arp_reply.arp_op = htons(arp_op_reply);
           arp_reply.arp_hln = 0x06;
           arp_reply.arp_pln = 0x04;
           std::copy(iface->addr.begin(), iface->addr.end(), arp_reply.arp_sha);
@@ -160,7 +158,7 @@ namespace simple_router
           reply.insert(reply.end(), (unsigned char *)&arp_reply, (unsigned char *)&arp_reply + sizeof(arp_reply));
 
           sendPacket(reply, iface->name);
-          std::cout<<"Send:"<<std::endl;
+          std::cout << "Send:" << std::endl;
           print_hdrs(reply);
         }
       }
@@ -168,23 +166,29 @@ namespace simple_router
       if (ntohs(arp_header->arp_op) == arp_op_reply)
       {
         auto sha = new Buffer;
-        sha->insert(sha->end(),arp_header->arp_sha, arp_header->arp_sha + 6);
-        auto request = m_arp.insertArpEntry(*sha, ntohl(arp_header->arp_sip));
-        if (request != nullptr)
+        sha->insert(sha->end(), arp_header->arp_sha, arp_header->arp_sha + 6);
+
+        auto arp_entry = m_arp.lookup(arp_header->arp_sip);
+        if (arp_entry == nullptr)
         {
-          printf("Pending packets\n");
-          for (auto iter = request->packets.begin(); iter != request->packets.end(); iter++)
+          auto request = m_arp.insertArpEntry(*sha, ntohl(arp_header->arp_sip));
+          if (request != nullptr)
           {
-            ethernet_hdr *ethe_header = (ethernet_hdr *)(iter->packet.data());
-            std::copy(sha->begin(), sha->end(), ethe_header->ether_dhost);
-            sendPacket(iter->packet, iter->iface);
-            printf("Send:\n");
-            print_hdrs(iter->packet);
+            printf("Pending packets\n");
+            for (auto iter = request->packets.begin(); iter != request->packets.end(); iter++)
+            {
+              ethernet_hdr *ethe_header = (ethernet_hdr *)(iter->packet.data());
+              std::copy(sha->begin(), sha->end(), ethe_header->ether_dhost);
+              sendPacket(iter->packet, iter->iface);
+              printf("Send:\n");
+              print_hdrs(iter->packet);
+            }
+            m_arp.removeRequest(request);
           }
-          m_arp.removeRequest(request);
-        }
-        else{
-          printf("No pending requests\n");
+          else
+          {
+            printf("No pending requests\n");
+          }
         }
       }
     }
@@ -199,7 +203,7 @@ namespace simple_router
         return;
       }
 
-      ip_hdr *ip_header = (ip_hdr *)((unsigned char*)eth_header + sizeof(ethernet_hdr));
+      ip_hdr *ip_header = (ip_hdr *)((unsigned char *)eth_header + sizeof(ethernet_hdr));
 
       uint16_t checksum = calcIpChecksum(ip_header);
       if (checksum != ip_header->ip_sum)
@@ -220,7 +224,7 @@ namespace simple_router
         ip_header->ip_ttl--;
 
         // icmp time exceeded message
-        if (ip_header->ip_ttl == -1)
+        if (ip_header->ip_ttl == 0)
         {
           ethernet_hdr ethe_reply;
           ethe_reply.ether_type = htons(ethertype_ip);
@@ -230,6 +234,8 @@ namespace simple_router
           ip_hdr ip_reply;
           ip_reply.ip_ttl = 100;
           ip_reply.ip_off = htons(IP_RF);
+          ip_reply.ip_v = 4;
+          ip_reply.ip_hl = 5;
 
           ip_reply.ip_p = 1;
           ip_reply.ip_src = iface->ip;
@@ -238,20 +244,20 @@ namespace simple_router
           icmp_t3_hdr icmp_reply;
           icmp_reply.icmp_type = 11;
           icmp_reply.icmp_code = 0;
-          std::copy((uint8_t*)ip_header, (uint8_t*)ip_header + ICMP_DATA_SIZE, icmp_reply.data);
+          std::copy((uint8_t *)ip_header, (uint8_t *)ip_header + ICMP_DATA_SIZE, icmp_reply.data);
 
           icmp_reply.icmp_sum = calcIcmpChecksum((icmp_hdr *)&icmp_reply, sizeof(icmp_t3_hdr));
 
-          ip_reply.ip_len = htons(sizeof(ip_hdr) + sizeof(icmp_hdr));
+          ip_reply.ip_len = htons(sizeof(ip_hdr) + sizeof(icmp_t3_hdr));
           ip_reply.ip_sum = calcIpChecksum(&ip_reply);
 
           Buffer packet;
           packet.insert(packet.end(), (unsigned char *)&ethe_reply, (unsigned char *)&ethe_reply + sizeof(ethernet_hdr));
           packet.insert(packet.end(), (unsigned char *)&ip_reply, (unsigned char *)&ip_reply + sizeof(ip_hdr));
-          packet.insert(packet.end(), (unsigned char *)&icmp_reply, (unsigned char *)&icmp_reply + sizeof(icmp_hdr));
+          packet.insert(packet.end(), (unsigned char *)&icmp_reply, (unsigned char *)&icmp_reply + sizeof(icmp_t3_hdr));
 
           sendPacket(packet, iface->name);
-          printf("forward:\n");
+          printf("Send TTL=0:\n");
           print_hdrs(packet);
           return;
         }
@@ -259,7 +265,6 @@ namespace simple_router
         ip_header->ip_sum = calcIpChecksum(ip_header);
         auto tiface = findIfaceByName(route_entry.ifName);
         std::copy(tiface->addr.begin(), tiface->addr.end(), eth_header->ether_shost);
-
 
         if (arp_entry == nullptr)
         {
@@ -285,7 +290,7 @@ namespace simple_router
             std::cerr << "Failed to parse ETHERNET header, insufficient length" << std::endl;
             return;
           }
-          icmp_hdr *icmp_header = (icmp_hdr *)((unsigned char*)ip_header + sizeof(ip_hdr));
+          icmp_hdr *icmp_header = (icmp_hdr *)((unsigned char *)ip_header + sizeof(ip_hdr));
           // echo
           if (icmp_header->icmp_type == 8)
           {
@@ -307,13 +312,15 @@ namespace simple_router
         if (ip_header->ip_p == 6 || ip_header->ip_p == 17)
         {
           ethernet_hdr ethe_reply;
-          ethe_reply.ether_type = ethertype_ip;
+          ethe_reply.ether_type = htons(ethertype_ip);
           std::copy(iface->addr.begin(), iface->addr.end(), ethe_reply.ether_shost);
           std::copy(eth_header->ether_shost, eth_header->ether_shost + 6, ethe_reply.ether_dhost);
 
           ip_hdr ip_reply;
           ip_reply.ip_ttl = 100;
           ip_reply.ip_off = htons(IP_RF);
+          ip_reply.ip_v = 4;
+          ip_reply.ip_hl = 5;
 
           ip_reply.ip_p = 1;
           ip_reply.ip_src = iface->ip;
@@ -322,17 +329,17 @@ namespace simple_router
           icmp_t3_hdr icmp_reply;
           icmp_reply.icmp_type = 3;
           icmp_reply.icmp_code = 3;
-          std::copy((uint8_t *)ip_header, (uint8_t*)ip_header + ICMP_DATA_SIZE, icmp_reply.data);
+          std::copy((uint8_t *)ip_header, (uint8_t *)ip_header + ICMP_DATA_SIZE, icmp_reply.data);
 
           icmp_reply.icmp_sum = calcIcmpChecksum((icmp_hdr *)&icmp_reply, sizeof(icmp_t3_hdr));
 
-          ip_reply.ip_len = htons(sizeof(ip_hdr) + sizeof(icmp_hdr));
+          ip_reply.ip_len = htons(sizeof(ip_hdr) + sizeof(icmp_t3_hdr));
           ip_reply.ip_sum = calcIpChecksum(&ip_reply);
 
           Buffer packet;
           packet.insert(packet.end(), (unsigned char *)&ethe_reply, (unsigned char *)&ethe_reply + sizeof(ethernet_hdr));
           packet.insert(packet.end(), (unsigned char *)&ip_reply, (unsigned char *)&ip_reply + sizeof(ip_hdr));
-          packet.insert(packet.end(), (unsigned char *)&icmp_reply, (unsigned char *)&icmp_reply + sizeof(icmp_hdr));
+          packet.insert(packet.end(), (unsigned char *)&icmp_reply, (unsigned char *)&icmp_reply + sizeof(icmp_t3_hdr));
 
           sendPacket(packet, iface->name);
           printf("Send:\n");
