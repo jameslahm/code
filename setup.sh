@@ -8,7 +8,7 @@ sudo apt-get -y install mininet expect
 sudo apt-get -y install xauth
 sudo apt-get -y install libzeroc-ice35-dev libboost-all-dev
 
-sudo easy_install pip
+sudo easy_install -i https://pypi.tuna.tsinghua.edu.cn/simple pip
 
 # POX
 sudo rm -Rf /opt/pox
