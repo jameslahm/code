@@ -167,17 +167,24 @@ namespace simple_router
 
       if (ntohs(arp_header->arp_op) == arp_op_reply)
       {
-        Buffer sha(arp_header->arp_sha, arp_header->arp_sha + 6);
-        auto request = m_arp.insertArpEntry(sha, ntohl(arp_header->arp_sip));
+        auto sha = new Buffer;
+        sha->insert(sha->end(),arp_header->arp_sha, arp_header->arp_sha + 6);
+        auto request = m_arp.insertArpEntry(*sha, ntohl(arp_header->arp_sip));
         if (request != nullptr)
         {
+          printf("Pending packets\n");
           for (auto iter = request->packets.begin(); iter != request->packets.end(); iter++)
           {
             ethernet_hdr *ethe_header = (ethernet_hdr *)(iter->packet.data());
-            std::copy(sha.begin(), sha.end(), ethe_header->ether_dhost);
+            std::copy(sha->begin(), sha->end(), ethe_header->ether_dhost);
             sendPacket(iter->packet, iter->iface);
+            printf("Send:\n");
+            print_hdrs(iter->packet);
           }
           m_arp.removeRequest(request);
+        }
+        else{
+          printf("No pending requests\n");
         }
       }
     }
@@ -202,8 +209,7 @@ namespace simple_router
       }
 
       // check if destined to the router
-      const Interface *tiface = findIfaceByIp(ntohl(ip_header->ip_dst));
-      printf("hello\n");
+      const Interface *tiface = findIfaceByIp(ip_header->ip_dst);
 
       // forward
       if (tiface == nullptr)
@@ -254,9 +260,10 @@ namespace simple_router
         auto tiface = findIfaceByName(route_entry.ifName);
         std::copy(tiface->addr.begin(), tiface->addr.end(), eth_header->ether_shost);
 
+
         if (arp_entry == nullptr)
         {
-          m_arp.queueRequest(route_entry.gw, packet, route_entry.ifName);
+          m_arp.queueRequest(ntohl(route_entry.gw), packet, route_entry.ifName);
         }
         else
         {
@@ -272,7 +279,6 @@ namespace simple_router
       {
         if (ip_header->ip_p == 1)
         {
-          printf("hello\n");
           length -= sizeof(icmp_hdr);
           if (length < 0)
           {
@@ -287,6 +293,7 @@ namespace simple_router
             uint32_t tmp = ip_header->ip_src;
             ip_header->ip_src = ip_header->ip_dst;
             ip_header->ip_dst = tmp;
+            // ip_header->ip_ttl--;
             std::copy(eth_header->ether_shost, eth_header->ether_shost + 6, eth_header->ether_dhost);
             std::copy(iface->addr.begin(), iface->addr.end(), eth_header->ether_shost);
 

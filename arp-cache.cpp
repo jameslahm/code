@@ -32,19 +32,67 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
 {
 
   // FILL THIS IN
+  // for(auto iter=m_cacheEntries.begin();iter!=m_cacheEntries.end();){
+  //   auto entry = *iter;
+  //   if(!entry->isValid){
+  //     iter=m_cacheEntries.erase(iter);
+  //   }
+  //   else
+  //   {
+  //     ++iter;
+  //   }
+  // }
+
+  
+
   for(auto iter=m_arpRequests.begin();iter!=m_arpRequests.end();){
     auto now = steady_clock::now();
     auto request = *iter;
     if((now-request->timeSent)>seconds(1)){
       if((request->nTimesSent)>=5){
         // TODO: send icmp host unreachable
-
+        iter++;
         removeRequest(request);
       }
       else{
         // TODO: send arp request
         request->timeSent=now;
         request->nTimesSent++;
+
+        arp_hdr arp_request;
+        arp_request.arp_hrd = htons(arp_hrd_ethernet);
+        arp_request.arp_pro = htons(ethertype_ip);
+        arp_request.arp_op =htons(arp_op_request);
+        arp_request.arp_hln = 0x06;
+        arp_request.arp_pln = 0x04;
+
+        auto route_entry = m_router.getRoutingTable().lookup(request->ip);
+
+        auto iface = m_router.findIfaceByName(route_entry.ifName);
+
+        std::copy(iface->addr.begin(), iface->addr.end(), arp_request.arp_sha);
+        arp_request.arp_sip = iface->ip;
+
+        uint8_t empty_tha[6]={0,0,0,0,0,0};
+        uint8_t broadcast_tha[6]={0xff,0xff,0xff,0xff,0xff,0xff};
+
+        std::copy(empty_tha, empty_tha + 6, arp_request.arp_tha);
+        arp_request.arp_tip = htonl(request->ip);
+
+        ethernet_hdr ethe_request;
+        ethe_request.ether_type = htons(ethertype_arp);
+        std::copy(iface->addr.begin(), iface->addr.end(), ethe_request.ether_shost);
+        std::copy(broadcast_tha, broadcast_tha + 6, ethe_request.ether_dhost);
+
+        Buffer packet;
+        packet.insert(packet.end(), (unsigned char *)&ethe_request, (unsigned char *)&ethe_request + sizeof(ethe_request));
+        packet.insert(packet.end(), (unsigned char *)&arp_request, (unsigned char *)&arp_request + sizeof(arp_request));
+
+        m_router.sendPacket(packet, iface->name);
+        std::cout<<"Send:"<<std::endl;
+        print_hdrs(packet);
+
+        iter++;
       }
     }
   }
@@ -111,6 +159,8 @@ std::shared_ptr<ArpRequest>
 ArpCache::insertArpEntry(const Buffer& mac, uint32_t ip)
 {
   std::lock_guard<std::mutex> lock(m_mutex);
+
+  printf("hello\n");
 
   auto entry = std::make_shared<ArpEntry>();
   entry->mac = mac;

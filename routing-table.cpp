@@ -37,21 +37,24 @@ namespace simple_router
     int max_prefix = -1;
     RoutingTableEntry res;
 
-    for (auto iter = m_entries.begin(); iter != m_entries.end(); iter++)
+    for (auto iter = m_entries.begin(); iter != m_entries.end();)
     {
       auto entry = *iter;
-      if ((ip & entry.mask) == (entry.dest & entry.mask))
+      uint32_t tmp = ntohl(entry.dest);
+      uint32_t mask = ntohl(entry.mask);
+      if ((ip & (mask)) == (tmp & (mask)))
       {
         int prefix;
-        uint32_t tmp = entry.dest;
-        for (prefix = 0; (tmp & 1) == 0; tmp >>= 1, prefix++)
+        for (prefix = 0; (tmp & 1) == 0 && prefix<=31; tmp >>= 1, prefix++)
           ;
         prefix = 32 - prefix;
         if (prefix > max_prefix)
         {
           res = entry;
+          max_prefix=prefix;
         }
       }
+      ++iter;
     }
 
     if(max_prefix==-1){
