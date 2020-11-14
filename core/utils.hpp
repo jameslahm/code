@@ -60,6 +60,8 @@ void print_hdrs(const uint8_t* buf, uint32_t length);
 
 void print_hdrs(const Buffer& buffer);
 
+void print_addr_ip_int(uint32_t ip);
+
 } // namespace simple_router
 
 #endif // SIMPLE_ROUTER_CORE_UTILS_HPP
