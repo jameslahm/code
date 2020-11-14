@@ -169,9 +169,10 @@ namespace simple_router
         sha->insert(sha->end(), arp_header->arp_sha, arp_header->arp_sha + 6);
 
         auto arp_entry = m_arp.lookup(arp_header->arp_sip);
+
         if (arp_entry == nullptr)
         {
-          auto request = m_arp.insertArpEntry(*sha, ntohl(arp_header->arp_sip));
+          auto request = m_arp.insertArpEntry(*sha, arp_header->arp_sip);
           if (request != nullptr)
           {
             printf("Pending packets\n");
@@ -268,7 +269,7 @@ namespace simple_router
 
         if (arp_entry == nullptr)
         {
-          m_arp.queueRequest(ntohl(route_entry.gw), packet, route_entry.ifName);
+          m_arp.queueRequest(route_entry.gw, packet, route_entry.ifName);
         }
         else
         {

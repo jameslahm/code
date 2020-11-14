@@ -66,7 +66,7 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
         arp_request.arp_hln = 0x06;
         arp_request.arp_pln = 0x04;
 
-        auto route_entry = m_router.getRoutingTable().lookup(request->ip);
+        auto route_entry = m_router.getRoutingTable().lookup(ntohl(request->ip));
 
         auto iface = m_router.findIfaceByName(route_entry.ifName);
 
@@ -77,7 +77,7 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
         uint8_t broadcast_tha[6]={0xff,0xff,0xff,0xff,0xff,0xff};
 
         std::copy(empty_tha, empty_tha + 6, arp_request.arp_tha);
-        arp_request.arp_tip = htonl(request->ip);
+        arp_request.arp_tip = request->ip;
 
         ethernet_hdr ethe_request;
         ethe_request.ether_type = htons(ethertype_arp);
