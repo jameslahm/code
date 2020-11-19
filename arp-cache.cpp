@@ -43,8 +43,6 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
     }
   }
 
-  
-
   for(auto iter=m_arpRequests.begin();iter!=m_arpRequests.end();){
     auto now = steady_clock::now();
     auto request = *iter;
@@ -56,40 +54,23 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
         
         for (auto it = request->packets.begin(); it != request->packets.end(); it++)
         {
-          ethernet_hdr *eth_header = (ethernet_hdr *)((it->packet).data());
-          ip_hdr *ip_header = (ip_hdr *)((unsigned char *)eth_header + sizeof(ethernet_hdr));
+          ethernet_hdr *ethe_header = (ethernet_hdr *)((it->packet).data());
+          ip_hdr *ip_header = (ip_hdr *)((unsigned char *)ethe_header + sizeof(ethernet_hdr));
 
           auto route_entry = m_router.getRoutingTable().lookup(ntohl(ip_header->ip_src));
           auto iface = m_router.findIfaceByName(route_entry.ifName);
 
-          ethernet_hdr ethe_reply;
-          ethe_reply.ether_type = htons(ethertype_ip);
-          std::copy(iface->addr.begin(), iface->addr.end(), ethe_reply.ether_shost);
+          auto ethe_reply = construct_ethe_header(ethertype_ip,(uint8_t *)(iface->addr.data()),ethe_header->ether_dhost);
 
-          ip_hdr ip_reply;
-          ip_reply.ip_ttl = 64;
-          ip_reply.ip_off = htons(IP_RF);
-          ip_reply.ip_v = 4;
-          ip_reply.ip_hl = 5;
+          auto ip_reply = construct_ip_header(IP_P_ICMP,iface->ip,ip_header->ip_src);
 
-          ip_reply.ip_p = 1;
-          ip_reply.ip_src = iface->ip;
-          ip_reply.ip_dst = ip_header->ip_src;
-
-          icmp_t3_hdr icmp_reply;
-          icmp_reply.icmp_type = 3;
-          icmp_reply.icmp_code = 3;
-          std::copy((uint8_t *)ip_header, (uint8_t *)ip_header + ICMP_DATA_SIZE, icmp_reply.data);
-
-          icmp_reply.icmp_sum = simple_router::calcIcmpChecksum((icmp_hdr *)&icmp_reply, sizeof(icmp_t3_hdr));
+          auto icmp_reply = construct_icmp_t3_header(ICMP_TYPE_PORT_UNREACHABLE,ICMP_CODE_PORT_UNREACHABLE,(uint8_t *)ip_header);
 
           ip_reply.ip_len = htons(sizeof(ip_hdr) + sizeof(icmp_t3_hdr));
           ip_reply.ip_sum = calcIpChecksum(&ip_reply);
 
-          Buffer packet;
-          packet.insert(packet.end(), (unsigned char *)&ethe_reply, (unsigned char *)&ethe_reply + sizeof(ethernet_hdr));
-          packet.insert(packet.end(), (unsigned char *)&ip_reply, (unsigned char *)&ip_reply + sizeof(ip_hdr));
-          packet.insert(packet.end(), (unsigned char *)&icmp_reply, (unsigned char *)&icmp_reply + sizeof(icmp_t3_hdr));
+
+          auto packet = construct_icmp_t3_packet(ethe_reply,ip_reply,icmp_reply);
 
           m_router.sendPacket(packet, iface->name);
           printf("Send:\n");
@@ -102,34 +83,18 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
         request->timeSent=now;
         request->nTimesSent++;
 
-        arp_hdr arp_request;
-        arp_request.arp_hrd = htons(arp_hrd_ethernet);
-        arp_request.arp_pro = htons(ethertype_ip);
-        arp_request.arp_op =htons(arp_op_request);
-        arp_request.arp_hln = 0x06;
-        arp_request.arp_pln = 0x04;
-
         auto route_entry = m_router.getRoutingTable().lookup(ntohl(request->ip));
 
         auto iface = m_router.findIfaceByName(route_entry.ifName);
 
-        std::copy(iface->addr.begin(), iface->addr.end(), arp_request.arp_sha);
-        arp_request.arp_sip = iface->ip;
-
         uint8_t empty_tha[6]={0,0,0,0,0,0};
         uint8_t broadcast_tha[6]={0xff,0xff,0xff,0xff,0xff,0xff};
 
-        std::copy(empty_tha, empty_tha + 6, arp_request.arp_tha);
-        arp_request.arp_tip = request->ip;
+        auto arp_request = construct_arp_header(arp_op_request,(uint8_t *)(iface->addr.data()),empty_tha,iface->ip,request->ip);
 
-        ethernet_hdr ethe_request;
-        ethe_request.ether_type = htons(ethertype_arp);
-        std::copy(iface->addr.begin(), iface->addr.end(), ethe_request.ether_shost);
-        std::copy(broadcast_tha, broadcast_tha + 6, ethe_request.ether_dhost);
+        auto ethe_request = construct_ethe_header(ethertype_arp,(uint8_t *)(iface->addr.data()),broadcast_tha);
 
-        Buffer packet;
-        packet.insert(packet.end(), (unsigned char *)&ethe_request, (unsigned char *)&ethe_request + sizeof(ethe_request));
-        packet.insert(packet.end(), (unsigned char *)&arp_request, (unsigned char *)&arp_request + sizeof(arp_request));
+        auto packet = construct_arp_packet(ethe_request,arp_request);
 
         m_router.sendPacket(packet, iface->name);
         std::cout<<"Send:"<<std::endl;

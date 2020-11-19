@@ -51,6 +51,18 @@
 
 #define ICMP_DATA_SIZE 28
 
+#define IP_P_ICMP 1
+#define IP_P_TCP 6
+#define IP_P_UDP 17
+
+#define ICMP_TYPE_ECHO_REQUEST 8
+#define ICMP_TYPE_ECHO_REPLY 0
+#define ICMP_CODE_ECHO 0
+#define ICMP_TYPE_TIME_EXCEEDED 11
+#define ICMP_CODE_TIME_EXCEEDED 0
+#define ICMP_TYPE_PORT_UNREACHABLE 3
+#define ICMP_CODE_PORT_UNREACHABLE 3
+
 namespace simple_router {
 
 using Buffer = std::vector<unsigned char>;

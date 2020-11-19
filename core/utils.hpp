@@ -72,6 +72,17 @@ namespace simple_router
 
     uint16_t calcIcmpChecksum(icmp_hdr *icmp_header, int len);
 
+    ethernet_hdr construct_ethe_header(enum ethertype type, uint8_t s[6], uint8_t d[6]);
+
+    ip_hdr construct_ip_header(uint8_t p, uint32_t s, uint32_t d);
+
+    icmp_t3_hdr construct_icmp_t3_header(uint8_t type, uint8_t code, uint8_t *data);
+
+    Buffer construct_icmp_t3_packet(ethernet_hdr ethe_reply, ip_hdr ip_reply, icmp_t3_hdr icmp_reply);
+
+    arp_hdr construct_arp_header(enum arp_opcode type,uint8_t sha[6],uint8_t tha[6],uint32_t sip,uint32_t tip);
+
+    Buffer construct_arp_packet(ethernet_hdr ethe_request, arp_hdr arp_request);
 } // namespace simple_router
 
 #endif // SIMPLE_ROUTER_CORE_UTILS_HPP
