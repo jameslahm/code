@@ -181,7 +181,7 @@ namespace simple_router
 
           ip_hdr ip_reply;
           ip_reply.ip_ttl = 64;
-          ip_reply.ip_off = htons(IP_RF);
+          ip_reply.ip_off = htons(IP_DF);
           ip_reply.ip_v = 4;
           ip_reply.ip_hl = 5;
 
@@ -275,7 +275,7 @@ namespace simple_router
 
           ip_hdr ip_reply;
           ip_reply.ip_ttl = 64;
-          ip_reply.ip_off = htons(IP_RF);
+          ip_reply.ip_off = htons(IP_DF);
           ip_reply.ip_v = 4;
           ip_reply.ip_hl = 5;
 
