@@ -180,15 +180,7 @@ namespace simple_router
           // std::copy(iface->addr.begin(), iface->addr.end(), ethe_reply.ether_shost);
           // std::copy(ethe_header->ether_shost, ethe_header->ether_shost + 6, ethe_reply.ether_dhost);
 
-<<<<<<< HEAD
-          ip_hdr ip_reply;
-          ip_reply.ip_ttl = 64;
-          ip_reply.ip_off = htons(IP_DF);
-          ip_reply.ip_v = 4;
-          ip_reply.ip_hl = 5;
-=======
           auto ethe_reply = construct_ethe_header(ethertype_ip,(uint8_t *)(iface->addr.data()),ethe_header->ether_shost);
->>>>>>> refactor-construct-packet
 
 
           // ip_hdr ip_reply;
