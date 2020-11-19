@@ -21,60 +21,6 @@
 
 namespace simple_router
 {
-
-  bool checkIfMatchMac(uint8_t addr[6], Buffer mac_addr)
-  {
-    for (int i = 0; i < 6; i++)
-    {
-      if (addr[i] != mac_addr.at(i))
-      {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  // check if broadcase addr
-  bool checkIfBroadcast(uint8_t addr[6])
-  {
-    uint8_t broadcase_addr[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    for (int i = 0; i < 6; i++)
-    {
-      if (addr[i] != broadcase_addr[i])
-      {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  // calculate checksum
-  uint16_t calcIpChecksum(ip_hdr *ip_header)
-  {
-    uint16_t *start = (uint16_t *)ip_header;
-
-    uint16_t tmp = *(start + 5);
-    *(start + 5) = 0;
-
-    auto checksum = cksum(start, sizeof(ip_hdr));
-
-    *(start + 5) = tmp;
-    return checksum;
-  }
-
-  uint16_t calcIcmpChecksum(icmp_hdr *icmp_header, int len)
-  {
-    uint16_t *start = (uint16_t *)icmp_header;
-
-    uint16_t tmp = *(start + 1);
-    *(start + 1) = 0;
-
-    auto checksum = cksum(start, len);
-
-    *(start + 1) = tmp;
-    return checksum;
-  }
-
   //////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////
   // IMPLEMENT THIS METHOD
@@ -220,7 +166,8 @@ namespace simple_router
       if (tiface == nullptr)
       {
         auto route_entry = m_routingTable.lookup(ntohl(ip_header->ip_dst));
-        auto arp_entry = m_arp.lookup(route_entry.gw);
+        // auto arp_entry = m_arp.lookup(route_entry.gw);
+        auto arp_entry = m_arp.lookup(ip_header->ip_dst);
 
         ip_header->ip_ttl--;
 
@@ -233,7 +180,7 @@ namespace simple_router
           std::copy(eth_header->ether_shost, eth_header->ether_shost + 6, ethe_reply.ether_dhost);
 
           ip_hdr ip_reply;
-          ip_reply.ip_ttl = 100;
+          ip_reply.ip_ttl = 64;
           ip_reply.ip_off = htons(IP_RF);
           ip_reply.ip_v = 4;
           ip_reply.ip_hl = 5;
@@ -265,11 +212,17 @@ namespace simple_router
 
         ip_header->ip_sum = calcIpChecksum(ip_header);
         auto tiface = findIfaceByName(route_entry.ifName);
+
+        // ATTENTION: copy src mac to dst mac
+        std::copy(eth_header->ether_shost,eth_header->ether_shost+6,eth_header->ether_dhost);
+
         std::copy(tiface->addr.begin(), tiface->addr.end(), eth_header->ether_shost);
+
 
         if (arp_entry == nullptr)
         {
-          m_arp.queueRequest(route_entry.gw, packet, route_entry.ifName);
+          // m_arp.queueRequest(route_entry.gw, packet, route_entry.ifName);
+          m_arp.queueRequest(ip_header->ip_dst, packet, route_entry.ifName);
         }
         else
         {
@@ -292,6 +245,9 @@ namespace simple_router
             return;
           }
           icmp_hdr *icmp_header = (icmp_hdr *)((unsigned char *)ip_header + sizeof(ip_hdr));
+
+          // TODO: checksum
+
           // echo
           if (icmp_header->icmp_type == 8)
           {
@@ -318,7 +274,7 @@ namespace simple_router
           std::copy(eth_header->ether_shost, eth_header->ether_shost + 6, ethe_reply.ether_dhost);
 
           ip_hdr ip_reply;
-          ip_reply.ip_ttl = 100;
+          ip_reply.ip_ttl = 64;
           ip_reply.ip_off = htons(IP_RF);
           ip_reply.ip_v = 4;
           ip_reply.ip_hl = 5;

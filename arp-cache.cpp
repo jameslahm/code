@@ -52,10 +52,53 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
       if((request->nTimesSent)>=5){
         // TODO: send icmp host unreachable
         iter++;
-        removeRequest(request);
+        std::cout<<"Arp not received: remove request"<<std::endl;
+        
+        for (auto it = request->packets.begin(); it != request->packets.end(); it++)
+        {
+          ethernet_hdr *eth_header = (ethernet_hdr *)((it->packet).data());
+          ip_hdr *ip_header = (ip_hdr *)((unsigned char *)eth_header + sizeof(ethernet_hdr));
+
+          auto route_entry = m_router.getRoutingTable().lookup(ntohl(ip_header->ip_src));
+          auto iface = m_router.findIfaceByName(route_entry.ifName);
+
+          ethernet_hdr ethe_reply;
+          ethe_reply.ether_type = htons(ethertype_ip);
+          std::copy(iface->addr.begin(), iface->addr.end(), ethe_reply.ether_shost);
+
+          ip_hdr ip_reply;
+          ip_reply.ip_ttl = 64;
+          ip_reply.ip_off = htons(IP_RF);
+          ip_reply.ip_v = 4;
+          ip_reply.ip_hl = 5;
+
+          ip_reply.ip_p = 1;
+          ip_reply.ip_src = iface->ip;
+          ip_reply.ip_dst = ip_header->ip_src;
+
+          icmp_t3_hdr icmp_reply;
+          icmp_reply.icmp_type = 3;
+          icmp_reply.icmp_code = 3;
+          std::copy((uint8_t *)ip_header, (uint8_t *)ip_header + ICMP_DATA_SIZE, icmp_reply.data);
+
+          icmp_reply.icmp_sum = simple_router::calcIcmpChecksum((icmp_hdr *)&icmp_reply, sizeof(icmp_t3_hdr));
+
+          ip_reply.ip_len = htons(sizeof(ip_hdr) + sizeof(icmp_t3_hdr));
+          ip_reply.ip_sum = calcIpChecksum(&ip_reply);
+
+          Buffer packet;
+          packet.insert(packet.end(), (unsigned char *)&ethe_reply, (unsigned char *)&ethe_reply + sizeof(ethernet_hdr));
+          packet.insert(packet.end(), (unsigned char *)&ip_reply, (unsigned char *)&ip_reply + sizeof(ip_hdr));
+          packet.insert(packet.end(), (unsigned char *)&icmp_reply, (unsigned char *)&icmp_reply + sizeof(icmp_t3_hdr));
+
+          m_router.sendPacket(packet, iface->name);
+          printf("Send:\n");
+          print_hdrs(packet);
+        }
+        m_arpRequests.remove(request);
+        std::cout<<"Arp not received: removed"<<std::endl;
       }
       else{
-        // TODO: send arp request
         request->timeSent=now;
         request->nTimesSent++;
 
