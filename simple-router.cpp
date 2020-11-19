@@ -55,17 +55,17 @@ namespace simple_router
       return;
     }
 
-    ethernet_hdr *eth_header = (ethernet_hdr *)packet.data();
+    ethernet_hdr *ethe_header = (ethernet_hdr *)packet.data();
 
     // check if broadcase or mathc mac address
-    if (!checkIfBroadcast(eth_header->ether_dhost) && !checkIfMatchMac(eth_header->ether_dhost, iface->addr))
+    if (!checkIfBroadcast(ethe_header->ether_dhost) && !checkIfMatchMac(ethe_header->ether_dhost, iface->addr))
     {
       std::cerr << "Received packet,ignore because of not match broadcase or mac address" << std::endl;
       return;
     }
 
     // handle arp packet
-    if (ntohs(eth_header->ether_type) == ethertype_arp)
+    if (ntohs(ethe_header->ether_type) == ethertype_arp)
     {
       length -= sizeof(arp_hdr);
       if (length < 0)
@@ -74,7 +74,7 @@ namespace simple_router
         return;
       }
 
-      arp_hdr *arp_header = (arp_hdr *)((unsigned char *)eth_header + sizeof(ethernet_hdr));
+      arp_hdr *arp_header = (arp_hdr *)((unsigned char *)ethe_header + sizeof(ethernet_hdr));
 
       // check if request
       if (ntohs(arp_header->arp_op) == arp_op_request)
@@ -83,25 +83,26 @@ namespace simple_router
         if (arp_header->arp_tip == iface->ip)
         {
           // send arp reply packet
-          arp_hdr arp_reply;
-          arp_reply.arp_hrd = htons(arp_hrd_ethernet);
-          arp_reply.arp_pro = htons(ethertype_ip);
-          arp_reply.arp_op = htons(arp_op_reply);
-          arp_reply.arp_hln = 0x06;
-          arp_reply.arp_pln = 0x04;
-          std::copy(iface->addr.begin(), iface->addr.end(), arp_reply.arp_sha);
-          arp_reply.arp_sip = iface->ip;
-          std::copy(arp_header->arp_sha, arp_header->arp_sha + 6, arp_reply.arp_tha);
-          arp_reply.arp_tip = arp_header->arp_sip;
+          // arp_hdr arp_reply;
+          // arp_reply.arp_hrd = htons(arp_hrd_ethernet);
+          // arp_reply.arp_pro = htons(ethertype_ip);
+          // arp_reply.arp_op = htons(arp_op_reply);
+          // arp_reply.arp_hln = 0x06;
+          // arp_reply.arp_pln = 0x04;
+          // std::copy(iface->addr.begin(), iface->addr.end(), arp_reply.arp_sha);
+          // arp_reply.arp_sip = iface->ip;
+          // std::copy(arp_header->arp_sha, arp_header->arp_sha + 6, arp_reply.arp_tha);
+          // arp_reply.arp_tip = arp_header->arp_sip;
 
-          ethernet_hdr ethe_reply;
-          ethe_reply.ether_type = htons(ethertype_arp);
-          std::copy(iface->addr.begin(), iface->addr.end(), ethe_reply.ether_shost);
-          std::copy(arp_header->arp_sha, arp_header->arp_sha + 6, ethe_reply.ether_dhost);
+          auto arp_reply = construct_arp_header(arp_op_reply,(uint8_t *)(iface->addr.data()),arp_header->arp_sha,iface->ip,arp_header->arp_sip);
 
-          Buffer reply;
-          reply.insert(reply.end(), (unsigned char *)&ethe_reply, (unsigned char *)&ethe_reply + sizeof(ethe_reply));
-          reply.insert(reply.end(), (unsigned char *)&arp_reply, (unsigned char *)&arp_reply + sizeof(arp_reply));
+          // ethernet_hdr ethe_reply;
+          // ethe_reply.ether_type = htons(ethertype_arp);
+          // std::copy(iface->addr.begin(), iface->addr.end(), ethe_reply.ether_shost);
+          // std::copy(arp_header->arp_sha, arp_header->arp_sha + 6, ethe_reply.ether_dhost);
+          auto ethe_reply = construct_ethe_header(ethertype_arp,(uint8_t *)(iface->addr.data()),arp_header->arp_sha);
+
+          auto reply = construct_arp_packet(ethe_reply,arp_reply);
 
           sendPacket(reply, iface->name);
           std::cout << "Send:" << std::endl;
@@ -141,7 +142,7 @@ namespace simple_router
     }
 
     // handle ip packet
-    if (ntohs(eth_header->ether_type) == ethertype_ip)
+    if (ntohs(ethe_header->ether_type) == ethertype_ip)
     {
       length -= sizeof(ip_hdr);
       if (length < 0)
@@ -150,7 +151,7 @@ namespace simple_router
         return;
       }
 
-      ip_hdr *ip_header = (ip_hdr *)((unsigned char *)eth_header + sizeof(ethernet_hdr));
+      ip_hdr *ip_header = (ip_hdr *)((unsigned char *)ethe_header + sizeof(ethernet_hdr));
 
       uint16_t checksum = calcIpChecksum(ip_header);
       if (checksum != ip_header->ip_sum)
@@ -174,35 +175,50 @@ namespace simple_router
         // icmp time exceeded message
         if (ip_header->ip_ttl == 0)
         {
-          ethernet_hdr ethe_reply;
-          ethe_reply.ether_type = htons(ethertype_ip);
-          std::copy(iface->addr.begin(), iface->addr.end(), ethe_reply.ether_shost);
-          std::copy(eth_header->ether_shost, eth_header->ether_shost + 6, ethe_reply.ether_dhost);
+          // ethernet_hdr ethe_reply;
+          // ethe_reply.ether_type = htons(ethertype_ip);
+          // std::copy(iface->addr.begin(), iface->addr.end(), ethe_reply.ether_shost);
+          // std::copy(ethe_header->ether_shost, ethe_header->ether_shost + 6, ethe_reply.ether_dhost);
 
+<<<<<<< HEAD
           ip_hdr ip_reply;
           ip_reply.ip_ttl = 64;
           ip_reply.ip_off = htons(IP_DF);
           ip_reply.ip_v = 4;
           ip_reply.ip_hl = 5;
+=======
+          auto ethe_reply = construct_ethe_header(ethertype_ip,(uint8_t *)(iface->addr.data()),ethe_header->ether_shost);
+>>>>>>> refactor-construct-packet
 
-          ip_reply.ip_p = 1;
-          ip_reply.ip_src = iface->ip;
-          ip_reply.ip_dst = ip_header->ip_src;
 
-          icmp_t3_hdr icmp_reply;
-          icmp_reply.icmp_type = 11;
-          icmp_reply.icmp_code = 0;
-          std::copy((uint8_t *)ip_header, (uint8_t *)ip_header + ICMP_DATA_SIZE, icmp_reply.data);
+          // ip_hdr ip_reply;
+          // ip_reply.ip_ttl = 64;
+          // ip_reply.ip_off = htons(IP_RF);
+          // ip_reply.ip_v = 4;
+          // ip_reply.ip_hl = 5;
 
-          icmp_reply.icmp_sum = calcIcmpChecksum((icmp_hdr *)&icmp_reply, sizeof(icmp_t3_hdr));
+          // ip_reply.ip_p = 1;
+          // ip_reply.ip_src = iface->ip;
+          // ip_reply.ip_dst = ip_header->ip_src;
+          auto ip_reply = construct_ip_header(IP_P_ICMP,iface->ip,ip_header->ip_src);
+
+          // icmp_t3_hdr icmp_reply;
+          // icmp_reply.icmp_type = 11;
+          // icmp_reply.icmp_code = 0;
+          // std::copy((uint8_t *)ip_header, (uint8_t *)ip_header + ICMP_DATA_SIZE, icmp_reply.data);
+
+          // icmp_reply.icmp_sum = calcIcmpChecksum((icmp_hdr *)&icmp_reply, sizeof(icmp_t3_hdr));
+
+          auto icmp_reply = construct_icmp_t3_header(ICMP_TYPE_TIME_EXCEEDED,ICMP_CODE_TIME_EXCEEDED,(uint8_t *)ip_header);
 
           ip_reply.ip_len = htons(sizeof(ip_hdr) + sizeof(icmp_t3_hdr));
           ip_reply.ip_sum = calcIpChecksum(&ip_reply);
 
-          Buffer packet;
-          packet.insert(packet.end(), (unsigned char *)&ethe_reply, (unsigned char *)&ethe_reply + sizeof(ethernet_hdr));
-          packet.insert(packet.end(), (unsigned char *)&ip_reply, (unsigned char *)&ip_reply + sizeof(ip_hdr));
-          packet.insert(packet.end(), (unsigned char *)&icmp_reply, (unsigned char *)&icmp_reply + sizeof(icmp_t3_hdr));
+          // Buffer packet;
+          // packet.insert(packet.end(), (unsigned char *)&ethe_reply, (unsigned char *)&ethe_reply + sizeof(ethernet_hdr));
+          // packet.insert(packet.end(), (unsigned char *)&ip_reply, (unsigned char *)&ip_reply + sizeof(ip_hdr));
+          // packet.insert(packet.end(), (unsigned char *)&icmp_reply, (unsigned char *)&icmp_reply + sizeof(icmp_t3_hdr));
+          auto packet = construct_icmp_t3_packet(ethe_reply,ip_reply,icmp_reply);
 
           sendPacket(packet, iface->name);
           printf("Send TTL=0:\n");
@@ -214,9 +230,9 @@ namespace simple_router
         auto tiface = findIfaceByName(route_entry.ifName);
 
         // ATTENTION: copy src mac to dst mac
-        std::copy(eth_header->ether_shost,eth_header->ether_shost+6,eth_header->ether_dhost);
+        std::copy(ethe_header->ether_shost,ethe_header->ether_shost+6,ethe_header->ether_dhost);
 
-        std::copy(tiface->addr.begin(), tiface->addr.end(), eth_header->ether_shost);
+        std::copy(tiface->addr.begin(), tiface->addr.end(), ethe_header->ether_shost);
 
 
         if (arp_entry == nullptr)
@@ -226,7 +242,7 @@ namespace simple_router
         }
         else
         {
-          std::copy(arp_entry->mac.begin(), arp_entry->mac.end(), eth_header->ether_dhost);
+          std::copy(arp_entry->mac.begin(), arp_entry->mac.end(), ethe_header->ether_dhost);
           sendPacket(packet, route_entry.ifName);
           printf("Send:\n");
           print_hdrs(packet);
@@ -256,8 +272,8 @@ namespace simple_router
             ip_header->ip_src = ip_header->ip_dst;
             ip_header->ip_dst = tmp;
             // ip_header->ip_ttl--;
-            std::copy(eth_header->ether_shost, eth_header->ether_shost + 6, eth_header->ether_dhost);
-            std::copy(iface->addr.begin(), iface->addr.end(), eth_header->ether_shost);
+            std::copy(ethe_header->ether_shost, ethe_header->ether_shost + 6, ethe_header->ether_dhost);
+            std::copy(iface->addr.begin(), iface->addr.end(), ethe_header->ether_shost);
 
             icmp_header->icmp_sum = calcIcmpChecksum(icmp_header, length + sizeof(icmp_hdr));
 
@@ -268,35 +284,39 @@ namespace simple_router
         }
         if (ip_header->ip_p == 6 || ip_header->ip_p == 17)
         {
-          ethernet_hdr ethe_reply;
-          ethe_reply.ether_type = htons(ethertype_ip);
-          std::copy(iface->addr.begin(), iface->addr.end(), ethe_reply.ether_shost);
-          std::copy(eth_header->ether_shost, eth_header->ether_shost + 6, ethe_reply.ether_dhost);
+          // ethernet_hdr ethe_reply;
+          // ethe_reply.ether_type = htons(ethertype_ip);
+          // std::copy(iface->addr.begin(), iface->addr.end(), ethe_reply.ether_shost);
+          // std::copy(ethe_header->ether_shost, ethe_header->ether_shost + 6, ethe_reply.ether_dhost);
+          auto ethe_reply = construct_ethe_header(ethertype_ip,(uint8_t *)(iface->addr.data()),ethe_header->ether_shost);
 
-          ip_hdr ip_reply;
-          ip_reply.ip_ttl = 64;
-          ip_reply.ip_off = htons(IP_DF);
-          ip_reply.ip_v = 4;
-          ip_reply.ip_hl = 5;
+          // ip_hdr ip_reply;
+          // ip_reply.ip_ttl = 64;
+          // ip_reply.ip_off = htons(IP_RF);
+          // ip_reply.ip_v = 4;
+          // ip_reply.ip_hl = 5;
 
-          ip_reply.ip_p = 1;
-          ip_reply.ip_src = iface->ip;
-          ip_reply.ip_dst = ip_header->ip_src;
+          // ip_reply.ip_p = 1;
+          // ip_reply.ip_src = iface->ip;
+          // ip_reply.ip_dst = ip_header->ip_src;
+          auto ip_reply = construct_ip_header(IP_P_ICMP,iface->ip,ip_header->ip_src);
 
-          icmp_t3_hdr icmp_reply;
-          icmp_reply.icmp_type = 3;
-          icmp_reply.icmp_code = 3;
-          std::copy((uint8_t *)ip_header, (uint8_t *)ip_header + ICMP_DATA_SIZE, icmp_reply.data);
+          // icmp_t3_hdr icmp_reply;
+          // icmp_reply.icmp_type = 3;
+          // icmp_reply.icmp_code = 3;
+          // std::copy((uint8_t *)ip_header, (uint8_t *)ip_header + ICMP_DATA_SIZE, icmp_reply.data);
 
-          icmp_reply.icmp_sum = calcIcmpChecksum((icmp_hdr *)&icmp_reply, sizeof(icmp_t3_hdr));
+          // icmp_reply.icmp_sum = calcIcmpChecksum((icmp_hdr *)&icmp_reply, sizeof(icmp_t3_hdr));
+          auto icmp_reply = construct_icmp_t3_header(ICMP_TYPE_PORT_UNREACHABLE,ICMP_CODE_PORT_UNREACHABLE,(uint8_t *)ip_header);
 
           ip_reply.ip_len = htons(sizeof(ip_hdr) + sizeof(icmp_t3_hdr));
           ip_reply.ip_sum = calcIpChecksum(&ip_reply);
 
-          Buffer packet;
-          packet.insert(packet.end(), (unsigned char *)&ethe_reply, (unsigned char *)&ethe_reply + sizeof(ethernet_hdr));
-          packet.insert(packet.end(), (unsigned char *)&ip_reply, (unsigned char *)&ip_reply + sizeof(ip_hdr));
-          packet.insert(packet.end(), (unsigned char *)&icmp_reply, (unsigned char *)&icmp_reply + sizeof(icmp_t3_hdr));
+          // Buffer packet;
+          // packet.insert(packet.end(), (unsigned char *)&ethe_reply, (unsigned char *)&ethe_reply + sizeof(ethernet_hdr));
+          // packet.insert(packet.end(), (unsigned char *)&ip_reply, (unsigned char *)&ip_reply + sizeof(ip_hdr));
+          // packet.insert(packet.end(), (unsigned char *)&icmp_reply, (unsigned char *)&icmp_reply + sizeof(icmp_t3_hdr));
+          auto packet = construct_icmp_t3_packet(ethe_reply,ip_reply,icmp_reply);
 
           sendPacket(packet, iface->name);
           printf("Send:\n");

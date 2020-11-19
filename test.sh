@@ -1,0 +1,13 @@
+client ping 192.168.2.1
+client ping 172.64.3.1
+client ping 10.0.1.1
+client ping 192.168.2.3
+client ping server1
+client ping server2
+client traceroute 192.168.2.1
+client traceroute 172.64.3.1
+client traceroute 10.0.1.1
+client traceroute server1
+client traceroute server2
+client wget http://192.168.2.2/index.html
+client wget http://172.64.3.10/index.html

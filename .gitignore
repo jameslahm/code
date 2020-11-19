@@ -8,4 +8,5 @@ router
 build/
 .vscode/
 **/nohup.out
-tmp
+tmp*
+index.html*

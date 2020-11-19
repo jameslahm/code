@@ -317,4 +317,71 @@ namespace simple_router
     return checksum;
   }
 
+  ethernet_hdr construct_ethe_header(enum ethertype type, uint8_t s[6], uint8_t d[6])
+  {
+    ethernet_hdr ethe_reply;
+    ethe_reply.ether_type = htons(type);
+    if (s)
+      std::copy(s, s + 6, ethe_reply.ether_shost);
+    if (d)
+      std::copy(d, d + 6, ethe_reply.ether_dhost);
+    return ethe_reply;
+  }
+
+  ip_hdr construct_ip_header(uint8_t p, uint32_t s, uint32_t d)
+  {
+    ip_hdr ip_reply;
+    ip_reply.ip_ttl = 64;
+    ip_reply.ip_off = htons(IP_RF);
+    ip_reply.ip_v = 4;
+    ip_reply.ip_hl = 5;
+
+    ip_reply.ip_p = 1;
+    ip_reply.ip_src = s;
+    ip_reply.ip_dst = d;
+    return ip_reply;
+  }
+
+  icmp_t3_hdr construct_icmp_t3_header(uint8_t type, uint8_t code, uint8_t *data)
+  {
+    icmp_t3_hdr icmp_reply;
+    icmp_reply.icmp_type = type;
+    icmp_reply.icmp_code = code;
+    std::copy(data, data + ICMP_DATA_SIZE, icmp_reply.data);
+    icmp_reply.icmp_sum = simple_router::calcIcmpChecksum((icmp_hdr *)&icmp_reply, sizeof(icmp_t3_hdr));
+    return icmp_reply;
+  }
+
+  arp_hdr construct_arp_header(enum arp_opcode type, uint8_t sha[6], uint8_t tha[6], uint32_t sip, uint32_t tip)
+  {
+    arp_hdr arp_request;
+    arp_request.arp_hrd = htons(arp_hrd_ethernet);
+    arp_request.arp_pro = htons(ethertype_ip);
+    arp_request.arp_op = htons(type);
+    arp_request.arp_hln = 0x06;
+    arp_request.arp_pln = 0x04;
+    std::copy(sha, sha + 6, arp_request.arp_sha);
+    arp_request.arp_sip = sip;
+    std::copy(tha, tha + 6, arp_request.arp_tha);
+    arp_request.arp_tip = tip;
+    return arp_request;
+  }
+
+  Buffer construct_icmp_t3_packet(ethernet_hdr ethe_reply, ip_hdr ip_reply, icmp_t3_hdr icmp_reply)
+  {
+    Buffer packet;
+    packet.insert(packet.end(), (unsigned char *)&ethe_reply, (unsigned char *)&ethe_reply + sizeof(ethernet_hdr));
+    packet.insert(packet.end(), (unsigned char *)&ip_reply, (unsigned char *)&ip_reply + sizeof(ip_hdr));
+    packet.insert(packet.end(), (unsigned char *)&icmp_reply, (unsigned char *)&icmp_reply + sizeof(icmp_t3_hdr));
+    return packet;
+  }
+
+  Buffer construct_arp_packet(ethernet_hdr ethe_request, arp_hdr arp_request)
+  {
+    Buffer packet;
+    packet.insert(packet.end(), (unsigned char *)&ethe_request, (unsigned char *)&ethe_request + sizeof(ethe_request));
+    packet.insert(packet.end(), (unsigned char *)&arp_request, (unsigned char *)&arp_request + sizeof(arp_request));
+    return packet;
+  }
+
 } // namespace simple_router
