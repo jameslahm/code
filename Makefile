@@ -23,3 +23,6 @@ clean:
 dist: tarball
 tarball: clean
 	tar -cvzf /tmp/$(USERID).tar.gz --exclude=./.vagrant . && mv /tmp/$(USERID).tar.gz .
+
+tar.gz: clean
+	git archive --format tar.gz HEAD > 2017010395.tar.gz
