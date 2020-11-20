@@ -45,19 +45,20 @@ namespace simple_router
       if ((ip & (mask)) == (tmp & (mask)))
       {
         int prefix;
-        for (prefix = 0; (tmp & 1) == 0 && prefix<=31; tmp >>= 1, prefix++)
+        for (prefix = 0; (tmp & 1) == 0 && prefix <= 31; tmp >>= 1, prefix++)
           ;
         prefix = 32 - prefix;
         if (prefix > max_prefix)
         {
           res = entry;
-          max_prefix=prefix;
+          max_prefix = prefix;
         }
       }
       ++iter;
     }
 
-    if(max_prefix==-1){
+    if (max_prefix == -1)
+    {
       throw std::runtime_error("Routing entry not found");
     }
     return res;
