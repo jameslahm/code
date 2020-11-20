@@ -227,6 +227,7 @@ namespace simple_router
             uint32_t tmp = ip_header->ip_src;
             ip_header->ip_src = ip_header->ip_dst;
             ip_header->ip_dst = tmp;
+            ip_header->ip_ttl = 64;
             // ip_header->ip_ttl--;
             std::copy(ethe_header->ether_shost, ethe_header->ether_shost + 6, ethe_header->ether_dhost);
             std::copy(iface->addr.begin(), iface->addr.end(), ethe_header->ether_shost);
