@@ -60,7 +60,7 @@ namespace simple_router
     // check if broadcase or mathc mac address
     if (!checkIfBroadcast(ethe_header->ether_dhost) && !checkIfMatchMac(ethe_header->ether_dhost, iface->addr))
     {
-      std::cerr << "Received packet,ignore because of not match broadcase or mac address" << std::endl;
+      std::cerr << "Received packet,ignore because of not match broadcast or mac address" << std::endl;
       return;
     }
 
@@ -79,6 +79,11 @@ namespace simple_router
       // check if request
       if (ntohs(arp_header->arp_op) == arp_op_request)
       {
+        // if (!checkIfBroadcast(ethe_header->ether_dhost)){
+        //   std::cerr << "Received Arp packet,ignore because of not match broadcast" << std::endl;
+        //   return;
+        // }
+
         // check if target here
         if (arp_header->arp_tip == iface->ip)
         {

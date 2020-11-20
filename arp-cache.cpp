@@ -83,6 +83,13 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
         request->timeSent=now;
         request->nTimesSent++;
 
+        // auto arp_entry = lookup(request->ip);
+        // if(arp_entry!=nullptr){
+        //   std::cout<<"MAC: ";
+        //   print_addr_eth((const uint8_t *)(arp_entry->mac.data()));
+        //   continue;
+        // }
+
         auto route_entry = m_router.getRoutingTable().lookup(ntohl(request->ip));
 
         auto iface = m_router.findIfaceByName(route_entry.ifName);

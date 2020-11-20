@@ -62,6 +62,7 @@ namespace simple_router
     void print_hdrs(const Buffer &buffer);
 
     void print_addr_ip_int(uint32_t ip);
+    void print_addr_eth(const uint8_t *addr);
 
     bool checkIfMatchMac(uint8_t addr[6], Buffer mac_addr);
 

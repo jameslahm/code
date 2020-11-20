@@ -220,6 +220,10 @@ def main(args):
     deduction = test_wget("client wget http://172.64.3.10/index.html",client,"http://172.64.3.10/index.html",strict_mode=strict_mode)
     credit-=deduction
 
+    print("Start test wget big file...")
+    deduction = test_wget("client wget http://192.168.2.2/tmp",client,"http://192.168.2.2/tmp",strict_mode=strict_mode)
+    credit-=deduction
+
     print("Congratulations: Your credit is {}".format(credit))
     
     stophttp()

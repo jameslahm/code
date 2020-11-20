@@ -332,11 +332,12 @@ namespace simple_router
   {
     ip_hdr ip_reply;
     ip_reply.ip_ttl = 64;
-    ip_reply.ip_off = htons(IP_RF);
+    ip_reply.ip_off = htons(IP_DF);
     ip_reply.ip_v = 4;
     ip_reply.ip_hl = 5;
+    ip_reply.ip_id = 0;
 
-    ip_reply.ip_p = 1;
+    ip_reply.ip_p = p;
     ip_reply.ip_src = s;
     ip_reply.ip_dst = d;
     return ip_reply;
