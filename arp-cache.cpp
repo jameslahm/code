@@ -69,7 +69,7 @@ namespace simple_router
 
             auto ip_reply = construct_ip_header(IP_P_ICMP, iface->ip, ip_header->ip_src);
 
-            auto icmp_reply = construct_icmp_t3_header(ICMP_TYPE_PORT_UNREACHABLE, ICMP_CODE_PORT_UNREACHABLE, (uint8_t *)ip_header);
+            auto icmp_reply = construct_icmp_t3_header(ICMP_TYPE_PORT_UNREACHABLE, ICMP_CODE_HOST_UNREACHABLE, (uint8_t *)ip_header);
 
             ip_reply.ip_len = htons(sizeof(ip_hdr) + sizeof(icmp_t3_hdr));
             ip_reply.ip_sum = calcIpChecksum(&ip_reply);

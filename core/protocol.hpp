@@ -62,6 +62,7 @@
 #define ICMP_CODE_TIME_EXCEEDED 0
 #define ICMP_TYPE_PORT_UNREACHABLE 3
 #define ICMP_CODE_PORT_UNREACHABLE 3
+#define ICMP_CODE_HOST_UNREACHABLE 1
 
 namespace simple_router {
 
