@@ -10,5 +10,5 @@ build/
 **/nohup.out
 tmp*
 index.html*
-*.tar.gz
+# *.tar.gz
 
