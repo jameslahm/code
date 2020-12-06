@@ -157,8 +157,17 @@ namespace simple_router
       if (tiface == nullptr)
       {
         auto route_entry = m_routingTable.lookup(ntohl(ip_header->ip_dst));
-        // auto arp_entry = m_arp.lookup(route_entry.gw);
-        auto arp_entry = m_arp.lookup(ip_header->ip_dst);
+        
+        std::shared_ptr<simple_router::ArpEntry> arp_entry;
+        uint32_t targetIp;
+        if(route_entry.ifName=="sw0-eth3"){
+          arp_entry = m_arp.lookup(route_entry.gw); 
+          targetIp = route_entry.gw;
+        }
+        else{
+          arp_entry = m_arp.lookup(ip_header->ip_dst);
+          targetIp = ip_header->ip_dst;
+        }
 
         ip_header->ip_ttl--;
 
@@ -194,7 +203,8 @@ namespace simple_router
         if (arp_entry == nullptr)
         {
           // m_arp.queueRequest(route_entry.gw, packet, route_entry.ifName);
-          m_arp.queueRequest(ip_header->ip_dst, packet, route_entry.ifName);
+          // m_arp.queueRequest(ip_header->ip_dst, packet, route_entry.ifName);
+          m_arp.queueRequest(targetIp, packet, route_entry.ifName);
         }
         else
         {
@@ -218,11 +228,16 @@ namespace simple_router
           }
           icmp_hdr *icmp_header = (icmp_hdr *)((unsigned char *)ip_header + sizeof(ip_hdr));
 
-          // TODO: checksum
-
           // echo
           if (icmp_header->icmp_type == 8)
           {
+            // TODO: checksum
+            uint16_t checksum = calcIcmpChecksum(icmp_header,length + sizeof(icmp_hdr));
+            if(checksum != icmp_header->icmp_sum){
+              std::cerr<<"Checksum not correct"<<std::endl;
+              return;
+            }
+
             icmp_header->icmp_type = 0;
             uint32_t tmp = ip_header->ip_src;
             ip_header->ip_src = ip_header->ip_dst;
